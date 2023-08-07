@@ -1,5 +1,5 @@
 import unittest
-import staty
+import core as staty
 
 
 class StatyTest(unittest.TestCase):
@@ -96,6 +96,30 @@ class StatyTest(unittest.TestCase):
         self.assertAlmostEqual(upper, 3.4674293860329124)
         with self.assertRaises(ValueError):
             staty.t_interval_equal_var([2], [2])
+
+    def test_z_test(self):
+        result, p_value = staty.z_test([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5.5)
+        self.assertEqual(result, False)
+        self.assertAlmostEqual(p_value, 1)
+
+        result, p_value = staty.z_test([1, 2, 3, 4, 5, 6, 7, 8, 9, 25], 5.5)
+        self.assertEqual(result, False)
+        self.assertAlmostEqual(p_value, 0.464)
+
+        with self.assertRaises(ValueError):
+            staty.z_test([2], 1)
+
+    def test_t_test(self):
+        result, p_value = staty.t_test([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5.5)
+        self.assertEqual(result, False)
+        self.assertAlmostEqual(p_value, 1)
+
+        result, p_value = staty.t_test([2, 3, 3.75, 4.25, 5, 6, 7.5, 8, 9, 11], 7)
+        self.assertEqual(result, False)
+        self.assertAlmostEqual(p_value, 0.248)
+
+        with self.assertRaises(ValueError):
+            staty.t_test([2], 1)
 
 
 if __name__ == '__main__':

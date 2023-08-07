@@ -37,6 +37,18 @@ def var(data: List[Union[int, float]], is_sample: bool = True) -> float:
 
 
 def pooled_var(data_x: List[Union[int, float]], data_y: List[Union[int, float]]) -> float:
+    """
+    Calculate the pooled variance of two sets of data.
+
+    :param data_x: A list of numerical values representing the first set of data.
+    :param data_y: A list of numerical values representing the second set of data.
+
+    :return: The pooled variance of the two sets of data.
+
+    :raises ValueError: If the length of the input data is less than 2.
+
+
+    """
     nx = len(data_x)
     ny = len(data_y)
     _validate_min_len(nx)
@@ -45,7 +57,7 @@ def pooled_var(data_x: List[Union[int, float]], data_y: List[Union[int, float]])
     var_x = var(data_x)
     var_y = var(data_y)
 
-    return ((nx - 1)*var_x + (ny-1)*var_y) / (nx+ny-2)
+    return ((nx - 1) * var_x + (ny - 1) * var_y) / (nx + ny - 2)
 
 
 def stdev(data: List[Union[int, float]], is_sample: bool = True) -> float:
@@ -128,7 +140,8 @@ def mode(data: List[Union[int, float, str]]) -> Union[float, str, List]:
 
 
 def cv(data: List[Union[int, float]], is_sample: bool = True) -> float:
-    """Calculate the coefficient of variation for a given list of data.
+    """
+    Calculate the coefficient of variation for a given list of data.
 
     :param data: A list of numerical values.
     :param is_sample: Optional. A boolean value indicating whether the data is a sample or population.
@@ -144,7 +157,8 @@ def cv(data: List[Union[int, float]], is_sample: bool = True) -> float:
 
 
 def cov(data_x: List[Union[int, float]], data_y: List[Union[int, float]], is_sample: bool = True) -> float:
-    """Calculates the covariance between two sets of data points given by `data_x` and `data_y`.
+    """
+    Calculates the covariance between two sets of data points given by `data_x` and `data_y`.
 
     :param data_x: A list of integers or floats representing the x coordinate values.
     :param data_y: A list of integers or floats representing the y coordinate values.
@@ -225,7 +239,7 @@ def z_interval(data: List[Union[int, float]], confidence_lvl: float = 0.95) -> T
     """
     _validate_min_len(len(data))
     alpha = 1 - confidence_lvl
-    z_value = stats.norm.ppf(1 - alpha/2)
+    z_value = stats.norm.ppf(1 - alpha / 2)
 
     m = mean(data)
     std_err = stderr(data, is_sample=False)
@@ -253,7 +267,7 @@ def z_interval_equal_var(data_x: List[Union[int, float]],
     _validate_min_len(nx)
     _validate_min_len(ny)
     alpha = 1 - confidence_lvl
-    z_value = stats.norm.ppf(1 - alpha/2)
+    z_value = stats.norm.ppf(1 - alpha / 2)
 
     mx = mean(data_x)
     my = mean(data_y)
@@ -261,8 +275,40 @@ def z_interval_equal_var(data_x: List[Union[int, float]],
 
     var_x = var(data_x, is_sample=False)
     var_y = var(data_y, is_sample=False)
-    me = z_value * sqrt((var_x/nx) + (var_y/ny))
+    me = z_value * sqrt((var_x / nx) + (var_y / ny))
     return m - me, m + me
+
+
+def z_test(data: List[Union[int, float]],
+           expected: float,
+           two_tailed: bool = True,
+           significance_lvl: float = 0.95,
+           direction: int = 1) -> Tuple[bool, float]:
+    """
+    Perform a z-test to determine if the sample mean is significantly different from the expected value.
+
+    :param data: A list of numerical values representing the sample data.
+    :param expected: A float representing the expected value.
+    :param two_tailed: A boolean indicating whether to perform a two-tailed test (default: True).
+    :param significance_lvl: A float representing the significance level (default: 0.95).
+    :param direction: An integer indicating the direction of the one-tailed test ( -1 = left-tailed, 1 = right-tailed)
+
+    :return: A tuple of boolean indicating whether the null hypothesis is rejected and the p-value.
+
+    :raises ValueError: If the length of the input data is less than 2.
+
+    """
+    _validate_min_len(len(data))
+    m = mean(data)
+    std_err = stderr(data, is_sample=False)
+
+    alpha = (1 - significance_lvl)/2 if two_tailed else 1 - significance_lvl
+    z_score = (m - expected) / std_err
+    print(z_score)
+    p_value = 2 * (1 - stats.norm.cdf(abs(z_score))) if two_tailed else (
+            1 - stats.norm.cdf(z_score)) if direction == 1 else stats.norm.cdf(z_score)
+
+    return p_value < alpha, round(p_value, 3)
 
 
 def t_interval(data: List[Union[int, float]], confidence_lvl: float = 0.95) -> Tuple[float, float]:
@@ -280,7 +326,7 @@ def t_interval(data: List[Union[int, float]], confidence_lvl: float = 0.95) -> T
     n = len(data)
     _validate_min_len(n)
     alpha = 1 - confidence_lvl
-    t_value = stats.t.ppf(1 - alpha/2, n-1)
+    t_value = stats.t.ppf(1 - alpha / 2, n - 1)
 
     m = mean(data)
     std_err = stderr(data)
@@ -309,7 +355,7 @@ def t_interval_equal_var(data_x: List[Union[int, float]],
     _validate_min_len(ny)
 
     alpha = 1 - confidence_lvl
-    t_value = stats.t.ppf(1 - alpha/2, nx+ny-2)
+    t_value = stats.t.ppf(1 - alpha / 2, nx + ny - 2)
 
     mx = mean(data_x)
     my = mean(data_y)
@@ -318,6 +364,39 @@ def t_interval_equal_var(data_x: List[Union[int, float]],
     p = pooled_var(data_x, data_y)
     me = t_value * sqrt((p / nx) + (p / ny))
     return m - me, m + me
+
+
+def t_test(data: List[Union[int, float]],
+           expected: float,
+           two_tailed: bool = True,
+           significance_lvl: float = 0.95,
+           direction: int = 1) -> Tuple[bool, float]:
+    """
+    Perform a t-test to determine if the sample mean is significantly different from the expected value.
+
+    :param data: A list of numerical values representing the sample data.
+    :param expected: A float representing the expected value.
+    :param two_tailed: A boolean indicating whether to perform a two-tailed test (default: True).
+    :param significance_lvl: A float representing the significance level (default: 0.95).
+    :param direction: An integer indicating the direction of the one-tailed test ( -1 = left-tailed, 1 = right-tailed)
+
+    :return: A tuple of boolean indicating whether the null hypothesis is rejected and the p-value.
+
+    :raises ValueError: If the length of the input data is less than 2.
+
+    """
+    n = len(data)
+    df = n - 1
+    _validate_min_len(n)
+    m = mean(data)
+    std_err = stderr(data)
+
+    alpha = (1 - significance_lvl)/2 if two_tailed else 1 - significance_lvl
+    t_score = (m - expected) / std_err
+    p_value = 2 * (1 - stats.norm.cdf(abs(t_score))) if two_tailed else (
+            1 - stats.norm.cdf(t_score)) if direction == 1 else stats.norm.cdf(t_score)
+
+    return p_value < alpha, round(p_value, 3)
 
 
 def _squared_difference(data: List[Union[int, float]], mean_value: float) -> float:
