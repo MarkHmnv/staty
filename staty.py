@@ -1,6 +1,7 @@
 from collections import Counter
 from typing import Union, List, Tuple
 from math import pow, sqrt
+import scipy.stats as stats
 
 
 def mean(data: List[Union[int, float]]) -> float:
@@ -33,6 +34,18 @@ def var(data: List[Union[int, float]], is_sample: bool = True) -> float:
     _validate_min_len(n)
     m = mean(data)
     return _squared_difference(data, m) / (n - 1 if is_sample else n)
+
+
+def pooled_var(data_x: List[Union[int, float]], data_y: List[Union[int, float]]) -> float:
+    nx = len(data_x)
+    ny = len(data_y)
+    _validate_min_len(nx)
+    _validate_min_len(ny)
+
+    var_x = var(data_x)
+    var_y = var(data_y)
+
+    return ((nx - 1)*var_x + (ny-1)*var_y) / (nx+ny-2)
 
 
 def stdev(data: List[Union[int, float]], is_sample: bool = True) -> float:
@@ -115,8 +128,7 @@ def mode(data: List[Union[int, float, str]]) -> Union[float, str, List]:
 
 
 def cv(data: List[Union[int, float]], is_sample: bool = True) -> float:
-    """
-    Calculate the coefficient of variation for a given list of data.
+    """Calculate the coefficient of variation for a given list of data.
 
     :param data: A list of numerical values.
     :param is_sample: Optional. A boolean value indicating whether the data is a sample or population.
@@ -132,8 +144,7 @@ def cv(data: List[Union[int, float]], is_sample: bool = True) -> float:
 
 
 def cov(data_x: List[Union[int, float]], data_y: List[Union[int, float]], is_sample: bool = True) -> float:
-    """
-    Calculates the covariance between two sets of data points given by `data_x` and `data_y`.
+    """Calculates the covariance between two sets of data points given by `data_x` and `data_y`.
 
     :param data_x: A list of integers or floats representing the x coordinate values.
     :param data_y: A list of integers or floats representing the y coordinate values.
@@ -168,12 +179,11 @@ def correlation_r(data_x: List[Union[int, float]], data_y: List[Union[int, float
     return covariance / (stdev(data_x, is_sample) * stdev(data_y, is_sample))
 
 
-def zscore(data: List[Union[int, float]], is_sample: bool = True) -> List[float]:
+def zscore(data: List[Union[int, float]]) -> List[float]:
     """
     Calculate the z-scores of a list of data points.
 
     :param data: A list of numeric data points.
-    :param is_sample: Optional. A boolean value indicating whether the data is a sample or population.
     :return: A list of z-scores corresponding to the input data.
 
     :raises ValueError: If the length of the input data is less than 2.
@@ -181,8 +191,133 @@ def zscore(data: List[Union[int, float]], is_sample: bool = True) -> List[float]
     """
     _validate_min_len(len(data))
     m = mean(data)
-    std_dev = stdev(data, is_sample)
+    std_dev = stdev(data, is_sample=False)
     return [(value - m) / std_dev for value in data]
+
+
+def tscore(data: List[Union[int, float]]) -> List[float]:
+    """
+    Calculate the t-scores of a list of data points.
+
+    :param data: A list of numeric data points.
+    :return: A list of t-scores corresponding to the input data.
+
+    :raises ValueError: If the length of the input data is less than 2.
+
+    """
+    _validate_min_len(len(data))
+    m = mean(data)
+    std_dev = stdev(data)
+    return [(value - m) / std_dev for value in data]
+
+
+def z_interval(data: List[Union[int, float]], confidence_lvl: float = 0.95) -> Tuple[float, float]:
+    """
+    Calculate the Z confidence interval of a list of data points.
+
+    :param data: A list of numeric values.
+    :param confidence_lvl: Optional. The desired level of confidence for the interval, value between 0 and 1.
+
+    :return: A tuple representing the lower and upper bounds of the confidence interval.
+
+    :raises ValueError: If the length of the input data is less than 2.
+
+    """
+    _validate_min_len(len(data))
+    alpha = 1 - confidence_lvl
+    z_value = stats.norm.ppf(1 - alpha/2)
+
+    m = mean(data)
+    std_err = stderr(data, is_sample=False)
+    me = z_value * std_err
+    return m - me, m + me
+
+
+def z_interval_equal_var(data_x: List[Union[int, float]],
+                         data_y: List[Union[int, float]],
+                         confidence_lvl: float = 0.95) -> Tuple[float, float]:
+    """
+    Calculate the Z confidence interval for two samples, assuming that the population variance is equal.
+
+    :param data_x: List of numerical values representing the first sample.
+    :param data_y: List of numerical values representing the second sample.
+    :param confidence_lvl: Optional. The desired level of confidence for the interval, value between 0 and 1.
+
+    :return: A tuple representing the lower and upper bounds of the confidence interval.
+
+    :raises ValueError: If the length of the input data is less than 2.
+
+    """
+    nx = len(data_x)
+    ny = len(data_y)
+    _validate_min_len(nx)
+    _validate_min_len(ny)
+    alpha = 1 - confidence_lvl
+    z_value = stats.norm.ppf(1 - alpha/2)
+
+    mx = mean(data_x)
+    my = mean(data_y)
+    m = mx - my
+
+    var_x = var(data_x, is_sample=False)
+    var_y = var(data_y, is_sample=False)
+    me = z_value * sqrt((var_x/nx) + (var_y/ny))
+    return m - me, m + me
+
+
+def t_interval(data: List[Union[int, float]], confidence_lvl: float = 0.95) -> Tuple[float, float]:
+    """
+    Calculate the T confidence interval of a list of data points.
+
+    :param data: A list of numeric values.
+    :param confidence_lvl: Optional. The desired level of confidence for the interval, value between 0 and 1.
+
+    :return: A tuple representing the lower and upper bounds of the confidence interval.
+
+    :raises ValueError: If the length of the input data is less than 2.
+
+    """
+    n = len(data)
+    _validate_min_len(n)
+    alpha = 1 - confidence_lvl
+    t_value = stats.t.ppf(1 - alpha/2, n-1)
+
+    m = mean(data)
+    std_err = stderr(data)
+    me = t_value * std_err
+    return m - me, m + me
+
+
+def t_interval_equal_var(data_x: List[Union[int, float]],
+                         data_y: List[Union[int, float]],
+                         confidence_lvl: float = 0.95) -> Tuple[float, float]:
+    """
+    Calculate the T confidence interval for two samples, assuming that the population variance is equal.
+
+    :param data_x: List of numerical values representing the first sample.
+    :param data_y: List of numerical values representing the second sample.
+    :param confidence_lvl: Optional. The desired level of confidence for the interval, value between 0 and 1.
+
+    :return: A tuple representing the lower and upper bounds of the confidence interval.
+
+    :raises ValueError: If the length of the input data is less than 2.
+
+    """
+    nx = len(data_x)
+    ny = len(data_y)
+    _validate_min_len(nx)
+    _validate_min_len(ny)
+
+    alpha = 1 - confidence_lvl
+    t_value = stats.t.ppf(1 - alpha/2, nx+ny-2)
+
+    mx = mean(data_x)
+    my = mean(data_y)
+    m = mx - my
+
+    p = pooled_var(data_x, data_y)
+    me = t_value * sqrt((p / nx) + (p / ny))
+    return m - me, m + me
 
 
 def _squared_difference(data: List[Union[int, float]], mean_value: float) -> float:
