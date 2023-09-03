@@ -76,7 +76,7 @@ class LogisticRegression:
         :param learning_rate: The learning rate for training (default: 0.001).
         :param print_cost: Whether to print the cost after every 100 iterations (default: False).
         """
-        w = np.zeros((X_train.shape[0], 1))
+        w = np.random.rand(X_train.shape[0], 1) * 0.01
         b = 0.0
 
         self.w, self.b = _optimize(w, b, X_train, Y_train, num_iterations, learning_rate, print_cost)
